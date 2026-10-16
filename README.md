@@ -104,8 +104,19 @@ docker stats --no-stream
 NGINX の設定テンプレートを変更した場合、または Artifactory を再作成した場合は、
 `docker compose restart nginx` を実行して設定・転送先の名前解決を更新します。
 
-証明書は365日で期限切れになります。更新時は新しい証明書を端末へ配布して信頼させてから切り替え、
-`docker compose exec -T nginx nginx -t` と `docker compose exec -T nginx nginx -s reload` で反映します。
+証明書の有効期限は10年（3650日）です。期限の確認と更新（延長）は以下の手順で行います。
+
+```bash
+# 有効期限の確認（notAfter が満了日時）
+openssl x509 -in .volumes/nginx/certs/server.crt -noout -dates
+
+# 証明書の再作成（延長）と NGINX への反映
+rm -f .volumes/nginx/certs/server.{key,crt,cer}
+bash setup.sh
+docker compose exec -T nginx nginx -t && docker compose exec -T nginx nginx -s reload
+```
+
+再作成後は、新しい `server.crt` / `server.cer` をクライアント端末へ再配布して信頼登録してください。
 
 `JF_JFCONNECT_ENABLED=false` は、CE に含まれない JFConnect への問い合わせを止めます。
 無効化しないと `First-time entitlement fetch failed` / HTTP 404 が繰り返され、

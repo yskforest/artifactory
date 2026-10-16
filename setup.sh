@@ -43,7 +43,7 @@ if [[ -e "${key_file}" || -e "${crt_file}" || -e "${cer_file}" ]]; then
   exit 1
 fi
 
-openssl req -x509 -newkey rsa:3072 -sha256 -noenc -days 365 \
+openssl req -x509 -newkey rsa:3072 -sha256 -noenc -days 3650 \
   -keyout "${key_file}" \
   -out "${crt_file}" \
   -subj "/CN=${tls_host}" \
