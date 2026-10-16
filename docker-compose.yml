@@ -3,9 +3,6 @@ services:
     image: releases-docker.jfrog.io/jfrog/artifactory-cpp-ce:latest
     container_name: artifactory
     restart: unless-stopped
-    ports:
-      - "8091:8081"
-      - "8092:8082"
     volumes:
       - ./.volumes/artifactory:/var/opt/jfrog/artifactory
     environment:
@@ -32,6 +29,20 @@ services:
       timeout: 10s
       retries: 10
       start_period: 180s
+
+  nginx:
+    image: nginx:stable-alpine
+    restart: unless-stopped
+    ports:
+      - "443:443"
+    environment:
+      HTTPS_HOSTNAME: ${HTTPS_HOSTNAME:-localhost}
+    volumes:
+      - ./nginx/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./.volumes/nginx/certs:/etc/nginx/certs:ro
+    depends_on:
+      artifactory:
+        condition: service_healthy
 
   postgres:
     image: postgres:17-alpine

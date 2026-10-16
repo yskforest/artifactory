@@ -1,9 +1,26 @@
 # Artifactory Community Edition for C/C++
 
 Conan 向けの Artifactory C++ CE と PostgreSQL を Docker Compose で起動します。
-ルートの `docker-compose.yml` を使用してください。
+自己署名証明書を使う NGINX を入口にし、HTTPS（443番）で公開します。
 
 大規模 C++ 開発向けの提案は [Visual Studio・Conan・Artifactory 運用フロー](docs/cpp-conan-artifactory-workflow.md) を参照してください。
+自己署名証明書による HTTPS 化は [設定手順](docs/https-patterns.md) にまとめています。
+
+## クイックリファレンス
+
+```bash
+# --- 初回セットアップ ---
+bash setup.sh                            # .env 作成、ボリューム準備、自己署名証明書の作成
+# ※ 起動前に .env の DB_PASSWORD（社内利用時は HTTPS_HOSTNAME も）を設定
+
+# --- 起動・状態確認・停止 ---
+docker compose up -d                     # バックグラウンドで起動・設定変更の反映
+docker compose logs -f artifactory       # 初期化・起動ログの追跡
+bash check-status.sh                     # コンテナ状態と Router ヘルスチェック
+docker stats --no-stream                 # リソース使用量の確認
+docker compose restart nginx             # NGINX の再起動（テンプレート変更・Artifactory 再作成時）
+docker compose down                      # データを保持して停止
+```
 
 ## 起動
 
@@ -13,21 +30,33 @@ Artifactory のメモリ上限は 4 GiB、JVM ヒープ上限は 2 GiB です。
 運用環境では [JFrog の要件](https://docs.jfrog.com/installation/docs/general-system-requirements)
 に合わせてリソースを見直してください。
 
+初回のみ `setup.sh` を実行します。以下の処理をまとめて行います（既存の `.env` や証明書は上書きしません）。
+
+- `.env` がない場合、`.env.example` から作成
+- `.volumes/artifactory` と `.volumes/postgres` の作成および `1030:1030` の権限設定（`sudo` を使用）
+- `.env` の `HTTPS_HOSTNAME`（未設定時は `localhost`）または第1引数で指定した名前を使い、`.volumes/nginx/certs/` に `server.key`、`server.crt`、`server.cer` を作成
+
 ```bash
-cp .env.example .env  # 初回のみ。既存の .env は上書きしない
+bash setup.sh              # localhost または .env の HTTPS_HOSTNAME で作成
+# bash setup.sh 接続するDNS名  # 社内 DNS 名を直接指定して作成する場合
 ```
+
+OpenSSL 3 を使用します。証明書の配布・Windows への信頼登録は [HTTPS 手順](docs/https-patterns.md) を参照してください。
+共有するのは `server.crt`（Conan 用）や `server.cer`（Windows 登録用）のみで、秘密鍵の `server.key` はサーバーに保管します。
 
 `.env` の `DB_PASSWORD` に任意の強いパスワードを設定します。未設定では起動しません。
 `DB_NAME` と `DB_USER` は必要に応じて変更できます。
+`HTTPS_HOSTNAME` は証明書と一致する接続先の DNS 名に設定します（初期値は `localhost`）。
+チーム利用では社内 DNS 名に変更し、各端末からサーバーの IP へ名前解決できるようにしてください。
+IP アドレスではなく DNS 名で接続する構成です。
 
 ```bash
-mkdir -p .volumes/artifactory .volumes/postgres
-sudo chown -R 1030:1030 .volumes/artifactory
 docker compose up -d
 docker compose logs -f artifactory
 ```
 
-初期化には数分かかります。`All services started successfully` が起動完了の目安です。
+初期化には数分かかります。Artifactory が healthy になった後、NGINX が起動します。
+443番が他のサービスで使用されていないことを確認してください。
 
 ```bash
 bash check-status.sh
@@ -38,20 +67,29 @@ bash check-status.sh
 
 ## ログインと Conan
 
-- UI: http://localhost:8092/ui/
+- UI: https://localhost/ui/（社内利用では `localhost` を `HTTPS_HOSTNAME` の値へ変更）
 - 初期認証: `admin` / `password`。ログイン後に管理者パスワードを変更してください。
 - DB 接続用の `DB_PASSWORD` と UI のパスワードは別です。
-- ホストの `8092` は Router の `8082`、`8091` は Artifactory の `8081` に対応します。
+- 公開するのは NGINX の443番のみです。Artifactory の8081/8082、PostgreSQL は直接公開しません。
 
 UI で Local リポジトリを作成し、Package Type を `Conan`、名前を `conan-local` にします。
 [Conan 2](https://docs.conan.io/2/reference/commands/remote.html) の設定例:
 
+Conan の `global.conf` に、配布した証明書のパスを設定します（Windows の例）。
+既存の証明書バンドルを使用している場合は、この証明書を追加したバンドルを指定してください。
+
+```ini
+core.net.http:cacert_path=C:/company/certs/server.crt
+```
+
 ```bash
-conan remote add artifactory http://localhost:8092/artifactory/api/conan/conan-local
+conan remote add artifactory https://localhost/artifactory/api/conan/conan-local
 conan remote login artifactory admin
 ```
 
-パスワードはプロンプトで入力します。
+パスワードはプロンプトで入力します。社内利用では URL の `localhost` を接続する DNS 名へ変更します。
+自己署名でも証明書検証を有効にし、`--insecure` で回避しないでください。
+既存 remote の URL は `conan remote update artifactory --url=https://接続名/artifactory/api/conan/conan-local` で更新します。
 
 ## 停止・設定変更
 
@@ -63,6 +101,11 @@ docker stats --no-stream
 ```
 
 環境変数の変更は `docker compose restart` だけでは反映されません。
+NGINX の設定テンプレートを変更した場合、または Artifactory を再作成した場合は、
+`docker compose restart nginx` を実行して設定・転送先の名前解決を更新します。
+
+証明書は365日で期限切れになります。更新時は新しい証明書を端末へ配布して信頼させてから切り替え、
+`docker compose exec -T nginx nginx -t` と `docker compose exec -T nginx nginx -s reload` で反映します。
 
 `JF_JFCONNECT_ENABLED=false` は、CE に含まれない JFConnect への問い合わせを止めます。
 無効化しないと `First-time entitlement fetch failed` / HTTP 404 が繰り返され、
@@ -74,6 +117,7 @@ docker stats --no-stream
 
 - `.volumes/artifactory/`: 設定・鍵・アーティファクト（コンテナの UID/GID `1030:1030` に書き込み権限が必要）
 - `.volumes/postgres/`: PostgreSQL のデータ（所有者はコンテナの初期化時に設定）
+- `.volumes/nginx/certs/`: 自己署名証明書と秘密鍵
 
 リポジトリ内の `.volumes/` をコンテナに直接マウントします。Git の管理対象外です。
 `docker compose down -v` でもこのディレクトリのデータは削除されません。
@@ -81,7 +125,7 @@ docker stats --no-stream
 所有者・権限を保持してそれぞれのデータを上記ディレクトリへコピーしてから起動してください。
 空のディレクトリをマウントすると新規環境として初期化されます。
 
-Artifactory は `latest`、PostgreSQL は `17-alpine` を使用します（ダイジェスト指定なし）。
+Artifactory は `latest`、PostgreSQL は `17-alpine`、NGINX は `stable-alpine` を使用します（ダイジェスト指定なし）。
 PostgreSQL は [Artifactory のサポート範囲](https://docs.jfrog.com/installation/docs/artifactory-database-requirements)
 に合わせてメジャー番号を指定し、17 系の最新パッチを利用します。
 イメージの取得・更新は `docker compose pull`、反映は `docker compose up -d` です。
@@ -92,7 +136,6 @@ PostgreSQL のメジャーバージョン変更には別途 DB 移行が必要�
 既存 DB に対して `.env` の `DB_PASSWORD` / `DB_USER` / `DB_NAME` を変更しても、
 DB 内の認証情報や DB 名は変わりません。先に DB 側を変更し、Compose の設定と揃えてください。
 
-現在のポート設定は全インターフェースに HTTP で公開します。
-ローカル限定ならポート設定を `127.0.0.1:8091:8081` と
-`127.0.0.1:8092:8082` に変更してください。
-他の端末から利用する運用では HTTPS とアクセス制限を用意してください。
+現在のポート設定は全インターフェースの443番に公開します。
+ローカル限定なら NGINX のポート設定を `127.0.0.1:443:443` に変更してください。
+チーム利用ではファイアウォール等で接続元を制限してください。
