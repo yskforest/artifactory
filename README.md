@@ -3,6 +3,8 @@
 Conan 向けの Artifactory C++ CE と PostgreSQL を Docker Compose で起動します。
 ルートの `docker-compose.yml` を使用してください。
 
+大規模 C++ 開発向けの提案は [Visual Studio・Conan・Artifactory 運用フロー](docs/cpp-conan-artifactory-workflow.md) を参照してください。
+
 ## 起動
 
 Docker Engine と Docker Compose v2 が必要です。現設定はローカル検証向けで、
