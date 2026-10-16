@@ -79,7 +79,10 @@ docker stats --no-stream
 所有者・権限を保持してそれぞれのデータを上記ディレクトリへコピーしてから起動してください。
 空のディレクトリをマウントすると新規環境として初期化されます。
 
-Artifactory イメージは動作確認したダイジェストに固定しています。
+Artifactory は `latest`、PostgreSQL は `17-alpine` を使用します（ダイジェスト指定なし）。
+PostgreSQL は [Artifactory のサポート範囲](https://docs.jfrog.com/installation/docs/artifactory-database-requirements)
+に合わせてメジャー番号を指定し、17 系の最新パッチを利用します。
+イメージの取得・更新は `docker compose pull`、反映は `docker compose up -d` です。
 更新前はサービスを停止して `.volumes/` 全体と `.env` を所有者・権限ごとバックアップし、
 復元できることを確認してください。DB 更新後はイメージだけ戻しても復旧できない場合があります。
 PostgreSQL のメジャーバージョン変更には別途 DB 移行が必要です。

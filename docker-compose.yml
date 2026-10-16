@@ -1,6 +1,6 @@
 services:
   artifactory:
-    image: releases-docker.jfrog.io/jfrog/artifactory-cpp-ce
+    image: releases-docker.jfrog.io/jfrog/artifactory-cpp-ce:latest
     container_name: artifactory
     restart: unless-stopped
     ports:
@@ -22,12 +22,7 @@ services:
       nofile:
         soft: 32000
         hard: 40000
-    deploy:
-      resources:
-        limits:
-          memory: 4g
-        reservations:
-          memory: 2g
+    mem_limit: 4g
     depends_on:
       postgres:
         condition: service_healthy
@@ -39,7 +34,7 @@ services:
       start_period: 180s
 
   postgres:
-    image: postgres:14-alpine
+    image: postgres:17-alpine
     container_name: artifactory_postgres
     restart: unless-stopped
     environment:
