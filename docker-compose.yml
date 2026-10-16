@@ -11,6 +11,7 @@ services:
     volumes:
       - artifactory_data:/var/opt/jfrog/artifactory
     environment:
+      - JF_JFCONNECT_ENABLED=false
       - JF_SHARED_DATABASE_TYPE=postgresql
       - JF_SHARED_DATABASE_USERNAME=${DB_USER:-artifactory}
       - JF_SHARED_DATABASE_PASSWORD=${DB_PASSWORD:-password}
