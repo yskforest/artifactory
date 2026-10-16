@@ -47,6 +47,7 @@ OpenSSL 3 を使用します。証明書の配布・Windows への信頼登録�
 `.env` の `DB_PASSWORD` に任意の強いパスワードを設定します。未設定では起動しません。
 `DB_NAME` と `DB_USER` は必要に応じて変更できます。
 `HTTPS_HOSTNAME` は証明書と一致する接続先の DNS 名に設定します（初期値は `localhost`）。
+`HTTPS_PORT` は公開する HTTPS ポート番号です（初期値は `443`）。別のポート（例: `8443`）で公開する場合は `.env` で変更してください（証明書の再作成は不要です）。
 チーム利用では社内 DNS 名に変更し、各端末からサーバーの IP へ名前解決できるようにしてください。
 IP アドレスではなく DNS 名で接続する構成です。
 
@@ -56,7 +57,7 @@ docker compose logs -f artifactory
 ```
 
 初期化には数分かかります。Artifactory が healthy になった後、NGINX が起動します。
-443番が他のサービスで使用されていないことを確認してください。
+`HTTPS_PORT`（初期値443番）が他のサービスで使用されていないことを確認してください。
 
 ```bash
 bash check-status.sh
@@ -67,10 +68,10 @@ bash check-status.sh
 
 ## ログインと Conan
 
-- UI: https://localhost/ui/（社内利用では `localhost` を `HTTPS_HOSTNAME` の値へ変更）
+- UI: https://localhost/ui/（社内利用やポート変更時は `https://HTTPS_HOSTNAME:HTTPS_PORT/ui/`）
 - 初期認証: `admin` / `password`。ログイン後に管理者パスワードを変更してください。
 - DB 接続用の `DB_PASSWORD` と UI のパスワードは別です。
-- 公開するのは NGINX の443番のみです。Artifactory の8081/8082、PostgreSQL は直接公開しません。
+- 公開するのは NGINX の `HTTPS_PORT`（初期値443番）のみです。Artifactory の8081/8082、PostgreSQL は直接公開しません。
 
 UI で Local リポジトリを作成し、Package Type を `Conan`、名前を `conan-local` にします。
 [Conan 2](https://docs.conan.io/2/reference/commands/remote.html) の設定例:
@@ -147,6 +148,6 @@ PostgreSQL のメジャーバージョン変更には別途 DB 移行が必要�
 既存 DB に対して `.env` の `DB_PASSWORD` / `DB_USER` / `DB_NAME` を変更しても、
 DB 内の認証情報や DB 名は変わりません。先に DB 側を変更し、Compose の設定と揃えてください。
 
-現在のポート設定は全インターフェースの443番に公開します。
-ローカル限定なら NGINX のポート設定を `127.0.0.1:443:443` に変更してください。
+現在のポート設定は全インターフェースの `HTTPS_PORT`（初期値443番）に公開します。
+ローカル限定なら NGINX のポート設定を `127.0.0.1:${HTTPS_PORT:-443}:443` に変更してください。
 チーム利用ではファイアウォール等で接続元を制限してください。

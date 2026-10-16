@@ -34,9 +34,10 @@ services:
     image: nginx:stable-alpine
     restart: unless-stopped
     ports:
-      - "443:443"
+      - "${HTTPS_PORT:-443}:443"
     environment:
       HTTPS_HOSTNAME: ${HTTPS_HOSTNAME:-localhost}
+      HTTPS_PORT: ${HTTPS_PORT:-443}
     volumes:
       - ./nginx/default.conf.template:/etc/nginx/templates/default.conf.template:ro
       - ./.volumes/nginx/certs:/etc/nginx/certs:ro

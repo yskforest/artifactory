@@ -59,8 +59,8 @@ bash setup.sh packages.example.internal
 ## 4. NGINX と Compose の設定
 
 NGINX は [docker-compose.yml](../docker-compose.yml) に定義済みです。
-[設定テンプレート](../nginx/default.conf.template) に `.env` の `HTTPS_HOSTNAME` が起動時に反映されます。
-80番は公開せず、最初から HTTPS の443番で接続します。Artifactory の8081/8082も直接公開しません。
+[設定テンプレート](../nginx/default.conf.template) に `.env` の `HTTPS_HOSTNAME` と `HTTPS_PORT`（初期値 `443`）が起動時に反映されます。
+80番は公開せず、最初から HTTPS（`HTTPS_PORT`）で接続します。Artifactory の8081/8082も直接公開しません。
 
 - 証明書: `.volumes/nginx/certs/server.crt`
 - 秘密鍵: `.volumes/nginx/certs/server.key`

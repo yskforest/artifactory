@@ -12,12 +12,12 @@ server {
     location / {
         proxy_pass http://artifactory:8082;
         proxy_http_version 1.1;
-        proxy_set_header Host ${HTTPS_HOSTNAME};
-        proxy_set_header X-Forwarded-Host ${HTTPS_HOSTNAME};
+        proxy_set_header Host ${HTTPS_HOSTNAME}:${HTTPS_PORT};
+        proxy_set_header X-Forwarded-Host ${HTTPS_HOSTNAME}:${HTTPS_PORT};
         proxy_set_header X-Forwarded-Proto https;
-        proxy_set_header X-Forwarded-Port 443;
+        proxy_set_header X-Forwarded-Port ${HTTPS_PORT};
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-JFrog-Override-Base-Url https://${HTTPS_HOSTNAME};
+        proxy_set_header X-JFrog-Override-Base-Url https://${HTTPS_HOSTNAME}:${HTTPS_PORT};
         proxy_request_buffering off;
         proxy_buffering off;
         proxy_connect_timeout 30s;
