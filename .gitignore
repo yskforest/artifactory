@@ -3,6 +3,8 @@
 
 # Docker volumes
 volumes/
+.volumes/
+manual/artifactory_data/
 
 # Logs
 *.log

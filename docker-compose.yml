@@ -1,20 +1,19 @@
-version: '3.8'
-
 services:
   artifactory:
-    image: releases-docker.jfrog.io/jfrog/artifactory-cpp-ce:latest
+    image: releases-docker.jfrog.io/jfrog/artifactory-cpp-ce
     container_name: artifactory
     restart: unless-stopped
     ports:
       - "8091:8081"
       - "8092:8082"
     volumes:
-      - artifactory_data:/var/opt/jfrog/artifactory
+      - ./.volumes/artifactory:/var/opt/jfrog/artifactory
     environment:
+      # CE に含まれない JFConnect への問い合わせでログインが停止するのを防ぐ。
       - JF_JFCONNECT_ENABLED=false
       - JF_SHARED_DATABASE_TYPE=postgresql
       - JF_SHARED_DATABASE_USERNAME=${DB_USER:-artifactory}
-      - JF_SHARED_DATABASE_PASSWORD=${DB_PASSWORD:-password}
+      - JF_SHARED_DATABASE_PASSWORD=${DB_PASSWORD:?Set DB_PASSWORD in .env}
       - JF_SHARED_DATABASE_URL=jdbc:postgresql://postgres:5432/${DB_NAME:-artifactory}
       - JF_SHARED_DATABASE_DRIVER=org.postgresql.Driver
       - EXTRA_JAVA_OPTIONS=-Xms512m -Xmx2g
@@ -46,17 +45,11 @@ services:
     environment:
       - POSTGRES_DB=${DB_NAME:-artifactory}
       - POSTGRES_USER=${DB_USER:-artifactory}
-      - POSTGRES_PASSWORD=${DB_PASSWORD:-password}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:?Set DB_PASSWORD in .env}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - ./.volumes/postgres:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-artifactory}"]
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
       interval: 10s
       timeout: 5s
       retries: 5
-
-volumes:
-  artifactory_data:
-    driver: local
-  postgres_data:
-    driver: local

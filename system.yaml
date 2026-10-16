@@ -1,8 +1,0 @@
-shared:
-  node:
-    haEnabled: false
-  jfrogUrl: http://localhost:8092
-
-frontend:
-  session:
-    timeoutMinutes: 30
